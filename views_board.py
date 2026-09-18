@@ -4,6 +4,7 @@ import streamlit as st
 from common import *
 
 
+
 def render_board_page(selected_board_name, data, year, selected_year):
     totals = board_totals(data, selected_board_name, year)
     gender_df = gender_df_for(data, selected_board_name, year)
@@ -37,6 +38,42 @@ def render_board_page(selected_board_name, data, year, selected_year):
     )
 
     render_notes(totals["notes"])
+
+    # ── Gender-gap callout ──────────────────────────────────────────────────
+    # The generic Key Insights list already includes a one-line gender-gap
+    # note, but a genuinely large gap (like BISE Kohat 2025's ~42pp male vs
+    # female split) deserves its own visible flag rather than being buried in
+    # a bullet list — this fires for any board/year where the gap is large,
+    # not just Kohat.
+    if not gender_df.empty and len(gender_df) >= 2:
+        g = gender_df.set_index("Gender")
+        if "Male" in g.index and "Female" in g.index:
+            m_pct, f_pct = g.loc["Male", "Pass %"], g.loc["Female", "Pass %"]
+            m_app, m_pass = int(g.loc["Male", "Appeared"]), int(g.loc["Male", "Passed"])
+            f_app, f_pass = int(g.loc["Female", "Appeared"]), int(g.loc["Female", "Passed"])
+            gap = f_pct - m_pct
+            if abs(gap) >= 15:
+                lower, higher = ("Boys", "Girls") if gap > 0 else ("Girls", "Boys")
+                lower_pct, higher_pct = (m_pct, f_pct) if gap > 0 else (f_pct, m_pct)
+                lower_detail = f"{m_pass:,}/{m_app:,}" if gap > 0 else f"{f_pass:,}/{f_app:,}"
+                higher_detail = f"{f_pass:,}/{f_app:,}" if gap > 0 else f"{m_pass:,}/{m_app:,}"
+                st.warning(
+                    f"⚠️ **Large gender gap at {selected_board_name} ({selected_year}):** "
+                    f"**{lower}** passed at **{lower_pct:.1f}%** ({lower_detail}) vs **{higher}** at "
+                    f"**{higher_pct:.1f}%** ({higher_detail}) — a **{abs(gap):.1f} pp** gap, "
+                    f"consistent across every reported group, not just one subject or paper."
+                )
+
+    # ── Board-specific reported context (NOT from the results workbook) ─────
+    # This is explanatory context supplied by the user, not derived from the
+    # Excel data — kept visually and textually separate from render_notes()
+    # above (which only ever shows the workbook's own Notes column) so it's
+    # never mistaken for a source-data caveat.
+    if selected_board_name in BOARD_REPORTED_CONTEXT:
+        with st.expander(f"📰 Reported reasons for {selected_board_name}'s results (not from the results data)"):
+            st.caption("Context supplied by the dashboard's user — not sourced from the Excel workbook.")
+            for line in BOARD_REPORTED_CONTEXT[selected_board_name]:
+                st.markdown(f"- {line}")
 
     _gaps = []
     if gender_df.empty:
@@ -165,8 +202,12 @@ def render_board_page(selected_board_name, data, year, selected_year):
             with tc2:
                 show_chart(year_compare_chart(trend_df))
         else:
+            only_year = int(trend_df["Year"].iloc[0])
             st.dataframe(trend_df, use_container_width=True, hide_index=True)
-            st.caption("Only one year of data is published for this board in the workbook.")
+            st.info(
+                f"ℹ️ Only **{only_year}** data is published for {selected_board_name} in the workbook — "
+                f"no prior year to compare against, so no year-over-year trend or decline/rise can be shown."
+            )
         st.markdown("</div>", unsafe_allow_html=True)
 
     if not group_gender_df.empty:
