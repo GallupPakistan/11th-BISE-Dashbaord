@@ -217,6 +217,7 @@ def render_overview(data, year, boards_sel):
                         f"{int(last_year)} Failed": int(sub.loc[last_year, "Failed"]),
                     })
 
+            excluded_single_year = [n for n, y in single_year_boards]
             if flagged_rows:
                 flagged_df = pd.DataFrame(flagged_rows).sort_values("Change (pp)")
                 st.markdown("&nbsp;", unsafe_allow_html=True)
@@ -233,6 +234,29 @@ def render_overview(data, year, boards_sel):
                 csv_download_button(flagged_df, "⬇️ Download flagged declines CSV", "flagged_pass_pct_declines.csv")
             else:
                 st.caption(f"✅ No board dropped {DECLINE_THRESHOLD:.0f}+ percentage points between {int(first_year)} and {int(last_year)}.")
+
+            # ── Lowest-performing board this year, even if it can't be
+            #     scored as a "decline" (e.g. only one year of data) ────────
+            latest_rows = board_trend[board_trend["Year"] == last_year].sort_values("Pass %")
+            if not latest_rows.empty:
+                lowest = latest_rows.iloc[0]
+                lowest_name, lowest_pct = lowest["Board"], lowest["Pass %"]
+                is_single_year = lowest_name in excluded_single_year
+                msg = (
+                    f"🔻 **{lowest_name}** is the **lowest-performing board** in {int(last_year)} at **{lowest_pct:.1f}%** pass rate"
+                    + (" — but with only one year of data on file, it can't be scored as a decline/rise above." if is_single_year else ".")
+                )
+                st.error(msg) if not is_single_year else st.info(msg)
+                if lowest_name in BOARD_REPORTED_CONTEXT:
+                    st.markdown(f"**Reported reasons for {lowest_name}'s low result:**")
+                    for line in BOARD_REPORTED_CONTEXT[lowest_name]:
+                        st.markdown(f"- {line}")
+
+            if excluded_single_year:
+                st.caption(
+                    f"ℹ️ Not evaluated here — no {int(first_year)} figure to compare against, so no decline/rise can be "
+                    f"computed (not the same as \"no change\"): {', '.join(excluded_single_year)}."
+                )
     else:
         st.info("No multi-year trend data available for the current filter.")
     st.markdown("</div>", unsafe_allow_html=True)
