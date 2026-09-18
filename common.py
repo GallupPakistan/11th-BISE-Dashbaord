@@ -582,17 +582,17 @@ def subject_pass_hbar(subjects, top_n=15, title=None):
     return style_fig(fig)
 
 
-def district_pass_hbar(districts, top_n=12):
+def district_pass_hbar(districts, top_n=12, title=None):
     if districts.empty:
         return None
     data = districts.sort_values("Pass %", ascending=True).tail(top_n)
     fig = go.Figure(go.Bar(
         x=data["Pass %"], y=data["District"], orientation="h",
         marker=dict(color=data["Pass %"], colorscale=[[0, FAIL_COLOR], [0.5, NAVY_LIGHT], [1, PASS_COLOR]]),
-        text=[f"{v:.1f}%" for v in data["Pass %"]], textposition="outside",
+        text=[f"{v:.1f}%" for v in data["Pass %"]], textposition="outside", cliponaxis=False,
     ))
-    fig.update_layout(title=chart_title(f"District Pass % (top {len(data)})"),
-                      xaxis=dict(range=[0, 105], title="Pass %"), yaxis=dict(automargin=True),
+    fig.update_layout(title=chart_title(title or f"District Pass % (top {len(data)})"),
+                      xaxis=dict(range=[0, 112], title="Pass %"), yaxis=dict(automargin=True),
                       height=max(380, 32 * len(data)), showlegend=False,
                       margin=chart_margins(title="x", extra_right=40))
     return style_fig(fig)
@@ -608,9 +608,9 @@ def board_rank_hbar(labels, values, title="", x_title="Pass %", height=None, dec
     fig = go.Figure(go.Bar(
         x=values_s, y=labels_s, orientation="h",
         marker=dict(color=values_s, colorscale=[[0, FAIL_COLOR], [0.5, NAVY_LIGHT], [1, PASS_COLOR]]),
-        text=[f"{v:.{decimals}f}%" for v in values_s], textposition="outside",
+        text=[f"{v:.{decimals}f}%" for v in values_s], textposition="outside", cliponaxis=False,
     ))
-    fig.update_layout(title=chart_title(title), xaxis=dict(range=[0, 105], title=x_title),
+    fig.update_layout(title=chart_title(title), xaxis=dict(range=[0, 112], title=x_title),
                       yaxis=dict(automargin=True), height=chart_h, showlegend=False,
                       margin=chart_margins(title=title, extra_right=40))
     return style_fig(fig)
@@ -889,7 +889,7 @@ PENDING_YEAR_KEY = "_pending_global_year_filter"
 PENDING_BOARDS_KEY = "_pending_global_boards_filter"
 
 
-def render_global_filters(data, all_board_names):
+def render_global_filters(data, all_board_names, show_boards_filter=True):
     available_years = sorted(get_available_years(data), reverse=True)
     latest_year = available_years[0] if available_years else None
     year_options = [str(y) for y in available_years] + ["All Years"]
@@ -912,10 +912,16 @@ def render_global_filters(data, all_board_names):
 
     st.markdown("**Filters**")
     year_choice = st.selectbox("Year", year_options, key=GLOBAL_YEAR_KEY)
-    raw_selected = st.multiselect(
-        "Boards", all_board_names, key=GLOBAL_BOARDS_KEY, placeholder="All boards",
-    )
-    selected_boards = raw_selected if raw_selected else list(all_board_names)
+    if show_boards_filter:
+        raw_selected = st.multiselect(
+            "Boards", all_board_names, key=GLOBAL_BOARDS_KEY, placeholder="All boards",
+        )
+        selected_boards = raw_selected if raw_selected else list(all_board_names)
+    else:
+        # This page doesn't filter by board (e.g. it always combines every
+        # reporting board itself), so don't show a control that wouldn't do
+        # anything here — just hand back every board.
+        selected_boards = list(all_board_names)
 
     year = None if year_choice == "All Years" else int(year_choice)
     return year, selected_boards, year_choice
