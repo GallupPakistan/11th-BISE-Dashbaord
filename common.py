@@ -508,6 +508,19 @@ def render_notes(notes):
             st.markdown(f'<div class="note-pill">⚠️ {n}</div>', unsafe_allow_html=True)
 
 
+# Explanatory context reported to this dashboard by its user for a specific
+# board's results — NOT extracted from the Excel workbook. Kept visually and
+# textually separate from render_notes() (workbook Notes column) wherever
+# it's shown, and clearly labeled as user-supplied, not source data.
+BOARD_REPORTED_CONTEXT = {
+    "BISE Kohat": [
+        "**Strict anti-cheating policy** — the board implemented tougher monitoring and surveillance during exams to stop unfair means.",
+        "**Shift to conceptual learning** — examiners moved away from rote memorization; marking now requires clear concepts and critical thinking.",
+        "**Higher grading standards** — stricter paper evaluation resulted in a clearer separation of capable students from others.",
+    ],
+}
+
+
 # ── Chart factory functions ────────────────────────────────────────────────────
 def donut_pie(labels, values, colors, title="", height=400):
     n = len(labels)
