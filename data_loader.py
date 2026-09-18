@@ -68,36 +68,56 @@ PROVINCE_COLORS = {"KPK": "#2E7D32", "Punjab": "#1565C0", "Federal (Islamabad)":
 # ── Subject-name normalization ──────────────────────────────────────────────
 # Different boards/years label the same paper differently — a trailing
 # "(Regular)" / "(Pre-Med)" / "(Compulsory)" / "(Elective)" / "(... overall)"
-# group qualifier, or a "-I" part-number suffix, or a plain spelling/typo
-# variant (e.g. "Mutaliae-Quran-e-Hakeem" vs "Mutalia-e-Quran Hakeem"). None
-# of that changes what paper it is, so it's folded into one canonical name
-# before anything is grouped or charted — Urdu / Urdu (Regular) both become
-# "Urdu", Islamic Education / Islamic Education (Compulsory) / Islamic
-# Education (Regular) all become "Islamic Education", etc. Genuinely distinct
-# subjects (e.g. "Urdu Compulsory" vs "Urdu", "Islamiyat Compulsory" vs
-# "Islamiyat Elective") are left alone — only the group/part-number noise is
-# stripped.
+# group qualifier in parens, a bare trailing "Compulsory"/"Elective" word
+# (e.g. "Urdu Compulsory" vs "Urdu", "Islamiyat Compulsory" vs "Islamiyat
+# Elective"), a "-I" part-number suffix, a plain spelling/typo variant (e.g.
+# "Mutaliae-Quran-e-Hakeem" vs "Mutalia-e-Quran Hakeem"), or an outright
+# different name for the same paper (e.g. "Islamic Education" / "Islamic
+# Studies" / "Islamiyat" are all the compulsory religious-studies paper).
+# None of that changes what paper it is, so it's all folded into one
+# canonical name before anything is grouped or charted.
 SUBJECT_ALIASES = {
-    "business math": "Business Mathematics",
+    "business math": "Mathematics",
+    "business mathematics": "Mathematics",
     "health & phy. education": "Health & Physical Education",
     "hpe": "Health & Physical Education",
-    "islamyat compulsory": "Islamiyat Compulsory",
-    "islamyat elective": "Islamiyat Elective",
+    "islamyat": "Islamiyat",
+    "islamic education": "Islamiyat",
+    "islamic studies": "Islamiyat",
+    "islamic history": "Islamiyat",
     "mutalia-e-quran hakeem": "Mutalia-e-Quran Hakeem",
     "mutaliae quran-e-hakeem": "Mutalia-e-Quran Hakeem",
     "mutaliae-quran-e-hakeem": "Mutalia-e-Quran Hakeem",
     "mutalia quran": "Mutalia-e-Quran Hakeem",
     "pakistan study": "Pakistan Studies",
     "pashtu": "Pashto",
+    "principles of economics": "Economics",
 }
 
 
 def normalize_subject(name) -> str:
     s = str(name).strip()
-    s = re.sub(r"\s*\([^)]*\)", "", s)          # drop any "(...)" group qualifier
-    s = re.sub(r"-I$", "", s)                    # drop a trailing "-I" part number
+    s = re.sub(r"\s*\([^)]*\)", "", s)                          # drop any "(...)" group qualifier
+    s = re.sub(r"-I$", "", s)                                    # drop a trailing "-I" part number
+    s = re.sub(r"\s+(Compulsory|Elective)$", "", s, flags=re.I)  # drop a bare trailing Compulsory/Elective qualifier
     s = re.sub(r"\s+", " ", s).strip()
     return SUBJECT_ALIASES.get(s.lower(), s)
+
+
+# ── District-name normalization ─────────────────────────────────────────────
+# Same idea as subjects: different year's gazette for the same board can spell
+# a district differently ("Muzaffargarh" vs "Muzaffar Garh", "Kot Addu" vs
+# "Kot Adu") — fold those into one canonical name so a district isn't double
+# counted as two separate rows.
+DISTRICT_ALIASES = {
+    "muzaffar garh": "Muzaffargarh",
+    "kot adu": "Kot Addu",
+}
+
+
+def normalize_district(name) -> str:
+    s = re.sub(r"\s+", " ", str(name).strip())
+    return DISTRICT_ALIASES.get(s.lower(), s)
 
 _NUMERIC_OVERVIEW_COLS = [
     "Total Applied", "Total Appeared", "Total Passed", "Overall Pass %",
@@ -133,6 +153,7 @@ def load_workbook():
     districtwise = _read(SHEET_DISTRICTWISE)
 
     subjectwise["Subject"] = subjectwise["Subject"].map(normalize_subject)
+    districtwise["District"] = districtwise["District"].map(normalize_district)
 
     for col in _NUMERIC_OVERVIEW_COLS:
         overview[col] = pd.to_numeric(overview[col], errors="coerce")
