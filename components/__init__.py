@@ -1,0 +1,1 @@
+"""components package — reusable visual building blocks (9th-class style)."""

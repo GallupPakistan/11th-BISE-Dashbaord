@@ -1,0 +1,1 @@
+"""charts package — shared chart base layout for the 11th-class dashboard."""
